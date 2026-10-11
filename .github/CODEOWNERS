@@ -1,0 +1,10 @@
+# 폴더별 담당자. 다른 사람 폴더를 수정한 Pull Request는 담당자 확인이 필요합니다.
+*                   @JNO-SW
+/src/common/        @JNO-SW
+/src/search/        @JNO-SW
+/src/main.cpp       @JNO-SW
+/web/               @JNO-SW
+/src/data/          @jihyeok1539
+/src/graph/         @jaegyumee2
+/src/route/         @Paratus27
+/src/station/       @TianDenis

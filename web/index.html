@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seoul Clean Route</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="toolbar">
+    <h1>Seoul Clean Route</h1>
+    <select id="period">
+      <option value="2025-02">2025년 2월</option>
+      <option value="2025-05">2025년 5월</option>
+      <option value="2025-08">2025년 8월</option>
+      <option value="2025-11">2025년 11월</option>
+    </select>
+    <input id="search" type="text" placeholder="지역명 검색">
+  </header>
+  <main>
+    <div id="map"></div>
+    <aside id="panel">
+      <section id="result"><h2>경로 비교</h2><p>지도에서 출발지와 목적지를 클릭하세요.</p></section>
+      <section id="ranking"><h2>Top / Worst 지역</h2></section>
+    </aside>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

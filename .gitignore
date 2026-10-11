@@ -1,0 +1,17 @@
+# 빌드 결과물
+build/
+*.o
+*.exe
+*.out
+web/app.js
+web/app.wasm
+web/app.data
+
+# 대용량 원본 데이터 (data/README.md 참고)
+data/raw/
+
+# 편집기, OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -36,7 +36,7 @@
 | 방지혁 | `src/data/TimeAVL.*`, `HashTable.h`, `DataLoader.*` | 2월 데이터 읽기, AVL 삽입·범위 탐색, 관측소 평균, 100m 격자 보간 | 10/26 |
 | 조효근 | `src/route/MinHeap.h`, `Stack.h`, `Queue.h`, `Router.*` | 힙·스택·큐, 다익스트라, 최단 경로와 비교 (+ 힙 유무 실행 시간 비교) | 10/26 |
 | 장데니스 | `src/station/TopKHeap.h`, `StationGraph.*` | 크기 k 힙, 자치구 Top/Worst 5 출력 | 10/26 |
-| 이준호 | `src/main.cpp`, `src/common/Export.*`, `web/` | 모듈 연결, 결과를 GeoJSON으로 저장, 웹 지도 표시, 트라이 | 10/31 |
+| 이준호 | `src/main.cpp`, `src/common/Export.*`, `src/search/Trie.*`, `web/` | 모듈 연결, 결과 파일 저장, 웹 지도 표시, 트라이 (**완료**, 10/27부터 통합) | 완료 |
 
 - 다른 사람 모듈이 아직 없으면 `src/common/TestData.h`의 가짜 데이터로 먼저 테스트하세요.
   - `makeTestGrid(10, 10)`: 10×10 가짜 격자 (`makeTestGrid(10, 10, true)`는 가운데에 벽이 있는 격자)
@@ -69,7 +69,14 @@ make test     # tests/ 폴더의 테스트 빌드·실행
 make wasm     # Emscripten(em++)으로 WebAssembly 빌드 → web/app.js, web/app.wasm
 ```
 
-웹 화면은 `web/index.html`을 로컬 서버로 열어 확인합니다. (예: `python3 -m http.server -d web`)
+중간발표 데모 (레포 맨 위 폴더에서 실행)
+
+```bash
+./build/app 마포 송파 1      # 출발지, 목적지(앞 글자만 써도 됨), alpha(미세먼지 반영 비중, 생략하면 1)
+python3 -m http.server -d web   # 브라우저에서 http://localhost:8000 열기
+```
+
+`./build/app`이 `web/data/`에 `grid.geojson`(칸별 미세먼지), `routes.geojson`(최적·최단 경로), `ranking.json`(Top/Worst 5)을 만들고, 웹 화면이 이 파일을 읽어 지도에 표시합니다.
 최종 결과물은 GitHub Pages로 배포합니다.
 
 ## 사용 데이터

@@ -1,6 +1,12 @@
 // 담당: 방지혁
 #include "data/DataLoader.h"
 
+bool DataLoader::loadStations(const std::string& path) {
+    // TODO: code,name,lat,lng,address,note 형식. 첫 줄(머리글)은 건너뛰기
+    (void)path;
+    return false;
+}
+
 bool DataLoader::loadDistrict(const std::string& path) {
     // TODO
     (void)path;

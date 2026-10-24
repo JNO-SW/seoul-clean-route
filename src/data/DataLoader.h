@@ -6,7 +6,11 @@
 
 class DataLoader {
 public:
-    // CSV 파일들을 읽어 관측소 목록과 AVL 트리를 채움. 성공하면 true
+    // 측정소 위치 파일(stations.csv)을 읽어 관측소 목록(stations_)을 채움. 가장 먼저 호출
+    bool loadStations(const std::string& path);
+
+    // 대기 데이터 파일(air_2025_MM.csv)을 읽어 AVL 트리에 기록을 넣음. 성공하면 true
+    // station_code로 관측소 목록에서 위치(stationIndex)를 찾아 Record에 저장
     bool loadDistrict(const std::string& path);   // 자치구 측정소 (OA-2221)
     bool loadSimple(const std::string& path);     // 간이측정망
     bool loadSdot(const std::string& path);       // S-DoT

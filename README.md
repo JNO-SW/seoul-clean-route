@@ -31,14 +31,17 @@
 
 | 담당 | 파일 | 할 일 | 마감 |
 |---|---|---|---|
-| 김재겸 | `src/graph/DynamicArray.h` | **동적 배열 먼저 완성 후 공유** (모두가 사용) | 10/26 |
-| 김재겸 | `src/graph/GridGraph.*` | 이웃 칸 계산, 가중치, 위경도 ↔ 칸 변환 | 10/29 |
-| 방지혁 | `src/data/TimeAVL.*`, `HashTable.h`, `DataLoader.*` | 2월 데이터 읽기, AVL 삽입·범위 탐색, 관측소 평균, 100m 격자 보간 | 10/29 |
-| 조효근 | `src/route/MinHeap.h`, `Stack.h`, `Queue.h`, `Router.*` | 힙·스택·큐, 다익스트라, 최단 경로와 비교 (+ 힙 유무 실행 시간 비교) | 10/29 |
-| 장데니스 | `src/station/TopKHeap.h`, `StationGraph.*` | 크기 k 힙, 자치구 Top/Worst 5 출력 | 10/30 |
+| 이준호 | `src/graph/DynamicArray.h` | 동적 배열 (**완료**, 모두 바로 사용 가능) | 완료 |
+| 김재겸 | `src/graph/GridGraph.*` | 이웃 칸 계산, 가중치, 위경도 ↔ 칸 변환 | 10/26 |
+| 방지혁 | `src/data/TimeAVL.*`, `HashTable.h`, `DataLoader.*` | 2월 데이터 읽기, AVL 삽입·범위 탐색, 관측소 평균, 100m 격자 보간 | 10/26 |
+| 조효근 | `src/route/MinHeap.h`, `Stack.h`, `Queue.h`, `Router.*` | 힙·스택·큐, 다익스트라, 최단 경로와 비교 (+ 힙 유무 실행 시간 비교) | 10/26 |
+| 장데니스 | `src/station/TopKHeap.h`, `StationGraph.*` | 크기 k 힙, 자치구 Top/Worst 5 출력 | 10/26 |
 | 이준호 | `src/main.cpp`, `src/common/Export.*`, `web/` | 모듈 연결, 결과를 GeoJSON으로 저장, 웹 지도 표시, 트라이 | 10/31 |
 
-- 다른 사람 모듈이 아직 없으면 작은 가짜 데이터(예: 10×10 격자)로 먼저 테스트하세요.
+- 다른 사람 모듈이 아직 없으면 `src/common/TestData.h`의 가짜 데이터로 먼저 테스트하세요.
+  - `makeTestGrid(10, 10)`: 10×10 가짜 격자 (`makeTestGrid(10, 10, true)`는 가운데에 벽이 있는 격자)
+  - `makeTestStations()`: 가짜 관측소 25개
+- 각자 브랜치에서 작업하세요: 방지혁 `feature/data`, 김재겸 `feature/graph`, 조효근 `feature/route`, 장데니스 `feature/station`, 이준호 `feature/web`
 - 각자 `tests/test_이름.cpp`로 자기 자료구조 테스트를 만들어 두면 발표 자료(구현 현황)에 바로 쓸 수 있습니다.
 - 11/1 데모 화면 캡처, 11/2 리허설
 

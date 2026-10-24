@@ -5,7 +5,7 @@
 #include <string>
 #include "graph/DynamicArray.h"
 
-// 날짜와 시각. BST 키로 쓰기 위해 하나의 정수로 바꿀 수 있습니다. (예: 2025021509 = 2025년 2월 15일 9시)
+// 날짜와 시각. AVL 트리 키로 쓰기 위해 하나의 정수로 바꿀 수 있습니다. (예: 2025021509 = 2025년 2월 15일 9시)
 struct DateTime {
     int year = 0, month = 0, day = 0, hour = 0;
     long long key() const { return ((year * 100LL + month) * 100 + day) * 100 + hour; }

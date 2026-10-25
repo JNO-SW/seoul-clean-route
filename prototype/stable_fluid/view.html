@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서울 바람·미세먼지</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --line: #e3e6eb;
+    --border-gu: rgba(30, 35, 48, 0.55); --outside: 0.28; --accent: #2457d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b; --panel: #1b1f27; --text: #e7eaf0; --muted: #98a2b3; --line: #2b313c;
+      --border-gu: rgba(235, 240, 250, 0.55); --outside: 0.22; --accent: #7aa2ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; display: grid;
+          grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .stage { position: relative; width: 100%; }
+  .stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  button { font: inherit; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line);
+           background: var(--panel); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .time { font-variant-numeric: tabular-nums; min-width: 92px; font-weight: 600; }
+  .big { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  label { display: flex; gap: 6px; align-items: center; margin: 4px 0; cursor: pointer; }
+  .legend { height: 10px; border-radius: 5px; margin: 6px 0 2px;
+            background: linear-gradient(90deg, #2F80ED 0%, #27AE60 20%, #F2994A 47%, #EB5757 100%); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+  side { display: block; }
+  .side > .card + .card { margin-top: 12px; }
+  svg text { fill: var(--muted); font-size: 10px; }
+  ul { margin: 6px 0 0; padding-left: 18px; }
+  li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>서울 바람·미세먼지 예측 (Stable Fluid 프로토타입)</h1>
+    <p class="sub">100m 격자 · 측정소 25곳 위치에 임의 바람 · 초기 PM2.5는 2025년 2월 실제 평균 · 바람이 불어오는 쪽에서 고농도 공기 덩어리(최대 +<span id="inflow"></span>) 유입 시나리오</p>
+    <div class="card">
+      <div class="stage" id="stage">
+        <canvas id="base"></canvas>
+        <canvas id="flow"></canvas>
+        <canvas id="top"></canvas>
+      </div>
+      <div class="controls">
+        <button id="play" class="primary">재생</button>
+        <input id="slider" type="range" min="0" max="1000" value="0">
+        <span class="time" id="time">+0분</span>
+      </div>
+    </div>
+  </div>
+  <div class="side">
+    <div class="card">
+      <div class="muted">서울 평균 PM2.5</div>
+      <div class="row"><span class="big" id="mean">-</span><span class="muted" id="delta"></span></div>
+      <svg id="chart" viewBox="0 0 276 90" width="100%" height="90"></svg>
+    </div>
+    <div class="card">
+      <div class="muted">PM2.5 (㎍/㎥)</div>
+      <div class="legend"></div>
+      <div class="ticks"><span>0</span><span>15 좋음</span><span>35 보통</span><span>75+</span></div>
+    </div>
+    <div class="card">
+      <label><input type="checkbox" id="showFlow" checked> 바람 입자</label>
+      <label><input type="checkbox" id="showArrows"> 바람 화살표 (800m 간격)</label>
+      <label><input type="checkbox" id="showStations" checked> 측정소 입력 바람</label>
+      <label><input type="checkbox" id="showGu" checked> 구 경계</label>
+    </div>
+    <div class="card muted">
+      <b style="color:var(--text)">계산 순서 (30초 × 360스텝 = 3시간)</b>
+      <ul>
+        <li>외력: 측정소 주변(σ 1km) 바람을 관측값 쪽으로 당김</li>
+        <li>이류: semi-Lagrangian (최신 속도로 역추적)</li>
+        <li>투영: 압력 Jacobi 60회로 발산 제거</li>
+        <li>미세먼지: 새 바람장으로 이류, 유입 경계로 구름 모양 고농도 공기가 바람을 타고 들어옴</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<script src="meta.js"></script>
+<script src="sim.js"></script>
+<script>
+const M = window.META, S = window.SIM;
+const NX = M.nx, NY = M.ny, DS = S.pmDs, VDS = S.velDs;
+const PW = Math.ceil(NX / DS), PH = Math.ceil(NY / DS);
+const VW = Math.ceil(NX / VDS), VH = Math.ceil(NY / VDS);
+const F = S.frames, LAST = F.length - 1;
+document.getElementById('inflow').textContent = S.pmHaze.toFixed(0);
+
+// 프레임 데이터 풀기
+const pmF = F.map(f => Float32Array.from(f.pm, x => x / 4));
+const uF = F.map(f => Float32Array.from(f.u, x => x / 100));
+const vF = F.map(f => Float32Array.from(f.v, x => x / 100));
+const mask = Uint8Array.from(M.maskDs, c => c === '1' ? 1 : 0);
+const seoulMean = pmF.map(pm => { let s = 0, n = 0; for (let k = 0; k < pm.length; k++) if (mask[k]) { s += pm[k]; n++; } return s / n; });
+
+// 화면 좌표: 격자 칸 좌표 (x: 동쪽 +, y: 북쪽 +) → 캔버스 픽셀
+const stage = document.getElementById('stage');
+const cv = { base: document.getElementById('base'), flow: document.getElementById('flow'), top: document.getElementById('top') };
+let W = 0, H = 0, scale = 1, dpr = 1;
+const toPx = (gx, gy) => [gx * scale, (NY - gy) * scale];
+const llToGrid = (lng, lat) => [(lng - M.minLng) / M.dlng, (lat - M.minLat) / M.dlat];
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = stage.clientWidth; scale = W / NX; H = NY * scale;
+  stage.style.height = H + 'px';
+  for (const c of Object.values(cv)) { c.width = W * dpr; c.height = H * dpr; c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); }
+  seoulPath = buildSeoulPath();
+  draw();
+}
+
+let seoulPath = null;
+function buildSeoulPath() {
+  const p = new Path2D();
+  for (const g of M.gu) for (const ring of g.rings) {
+    ring.forEach(([lng, lat], i) => { const [x, y] = toPx(...llToGrid(lng, lat)); i ? p.lineTo(x, y) : p.moveTo(x, y); });
+    p.closePath();
+  }
+  return p;
+}
+
+// 색: 0 파랑 → 15 초록 → 35 주황 → 75 빨강
+const STOPS = [[0, [47, 128, 237]], [15, [39, 174, 96]], [35, [242, 153, 74]], [75, [235, 87, 87]]];
+function color(pm) {
+  if (pm >= 75) return STOPS[3][1];
+  for (let s = 1; s < STOPS.length; s++) if (pm <= STOPS[s][0]) {
+    const [a, ca] = STOPS[s - 1], [b, cb] = STOPS[s], t = (pm - a) / (b - a);
+    return [0, 1, 2].map(k => ca[k] + (cb[k] - ca[k]) * t);
+  }
+}
+
+// 현재 시간(프레임 사이 보간)의 미세먼지·바람
+let t = 0;   // 0 ~ LAST (소수 = 프레임 사이)
+const off = document.createElement('canvas'); off.width = PW; off.height = PH;
+const offCtx = off.getContext('2d'); const img = offCtx.createImageData(PW, PH);
+function fieldAt(arrs, k) { const i = Math.floor(t), f = t - i, j = Math.min(i + 1, LAST); return arrs[i][k] * (1 - f) + arrs[j][k] * f; }
+
+function drawBase() {
+  const ctx = cv.base.getContext('2d');
+  for (let j = 0; j < PH; j++) for (let i = 0; i < PW; i++) {
+    const c = color(fieldAt(pmF, j * PW + i)), o = ((PH - 1 - j) * PW + i) * 4;
+    img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+  }
+  offCtx.putImageData(img, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.imageSmoothingEnabled = true;
+  const dw = PW * DS * scale, dh = PH * DS * scale;
+  ctx.globalAlpha = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--outside'));
+  ctx.drawImage(off, 0, H - dh, dw, dh);
+  ctx.globalAlpha = 0.9;
+  ctx.save(); ctx.clip(seoulPath); ctx.drawImage(off, 0, H - dh, dw, dh); ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function arrow(ctx, x, y, dx, dy, head) {
+  const len = Math.hypot(dx, dy); if (len < 0.5) return;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dy);
+  const a = Math.atan2(dy, dx);
+  ctx.lineTo(x + dx - head * Math.cos(a - 0.45), y + dy - head * Math.sin(a - 0.45));
+  ctx.moveTo(x + dx, y + dy);
+  ctx.lineTo(x + dx - head * Math.cos(a + 0.45), y + dy - head * Math.sin(a + 0.45));
+  ctx.stroke();
+}
+
+function drawTop() {
+  const ctx = cv.top.getContext('2d'); ctx.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.documentElement);
+  if (document.getElementById('showGu').checked) {
+    ctx.strokeStyle = css.getPropertyValue('--border-gu'); ctx.lineWidth = 0.8; ctx.stroke(seoulPath);
+  }
+  if (document.getElementById('showArrows').checked) {
+    ctx.strokeStyle = 'rgba(20,20,30,0.75)'; ctx.lineWidth = 1;
+    for (let j = 1; j < VH; j += 1) for (let i = 1; i < VW; i += 1) {
+      const k = j * VW + i, u = fieldAt(uF, k), v = fieldAt(vF, k);
+      const [x, y] = toPx(i * VDS, j * VDS);
+      arrow(ctx, x, y, u * scale * 2.2, -v * scale * 2.2, 3);
+    }
+  }
+  if (document.getElementById('showStations').checked) {
+    for (const s of M.stations) {
+      const [x, y] = toPx(...llToGrid(s.lng, s.lat));
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 2.2;
+      arrow(ctx, x, y, s.u * scale * 4, -s.v * scale * 4, 5);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+      arrow(ctx, x, y, s.u * scale * 4, -s.v * scale * 4, 5);
+      ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = '#111'; ctx.stroke();
+    }
+  }
+}
+
+// 바람 입자: 실제 축척(초당 m)으로 이동. 재생 중 화면 1초 = 시뮬레이션 약 12.5분
+const NP = 2600, px = new Float32Array(NP), py = new Float32Array(NP), age = new Uint16Array(NP);
+function spawn(k) { px[k] = Math.random() * NX; py[k] = Math.random() * NY; age[k] = Math.random() * 80 | 0; }
+for (let k = 0; k < NP; k++) spawn(k);
+function velAt(gx, gy) {
+  let x = gx / VDS, y = gy / VDS; x = Math.max(0, Math.min(VW - 1.001, x)); y = Math.max(0, Math.min(VH - 1.001, y));
+  const i = x | 0, j = y | 0, tx = x - i, ty = y - j, k = j * VW + i;
+  const b = (a) => fieldAt(a, k) * (1 - tx) * (1 - ty) + fieldAt(a, k + 1) * tx * (1 - ty) + fieldAt(a, k + VW) * (1 - tx) * ty + fieldAt(a, k + VW + 1) * tx * ty;
+  return [b(uF), b(vF)];
+}
+function stepFlow(simSeconds) {
+  const ctx = cv.flow.getContext('2d');
+  ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
+  if (!document.getElementById('showFlow').checked) { ctx.clearRect(0, 0, W, H); return; }
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.1; ctx.beginPath();
+  for (let k = 0; k < NP; k++) {
+    const [u, v] = velAt(px[k], py[k]);
+    const nx = px[k] + u * simSeconds / M.cell, ny = py[k] + v * simSeconds / M.cell;
+    const [x0, y0] = toPx(px[k], py[k]), [x1, y1] = toPx(nx, ny);
+    ctx.moveTo(x0, y0); ctx.lineTo(x1 + 0.01, y1);
+    px[k] = nx; py[k] = ny;
+    if (++age[k] > 90 || nx < 0 || ny < 0 || nx >= NX || ny >= NY) spawn(k);
+  }
+  ctx.stroke();
+}
+
+// 서울 평균 그래프
+function drawChart() {
+  const svg = document.getElementById('chart'), w = 276, h = 90, pad = 22;
+  const lo = Math.floor(Math.min(...seoulMean) / 5) * 5, hi = Math.ceil(Math.max(...seoulMean) / 5) * 5;
+  const X = i => pad + (w - pad - 6) * i / LAST, Y = v => h - 16 - (h - 26) * (v - lo) / (hi - lo);
+  const pts = seoulMean.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  const cur = Math.min(LAST, t);
+  svg.innerHTML =
+    `<line x1="${pad}" y1="${Y(lo)}" x2="${w - 6}" y2="${Y(lo)}" stroke="var(--line)"/>` +
+    `<text x="0" y="${Y(hi) + 3}">${hi}</text><text x="0" y="${Y(lo) + 3}">${lo}</text>` +
+    `<text x="${pad}" y="${h - 2}">0h</text><text x="${w - 22}" y="${h - 2}">3h</text>` +
+    `<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+    `<line x1="${X(cur)}" y1="6" x2="${X(cur)}" y2="${h - 16}" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+}
+
+function draw() {
+  drawBase(); drawTop(); drawChart();
+  const minutes = t * (F[1].t - F[0].t);
+  document.getElementById('time').textContent = `+${Math.round(minutes)}분`;
+  const i = Math.floor(t), f = t - i, m = seoulMean[i] * (1 - f) + seoulMean[Math.min(i + 1, LAST)] * f;
+  document.getElementById('mean').textContent = m.toFixed(1);
+  const d = m - seoulMean[0];
+  document.getElementById('delta').textContent = `시작 대비 ${d >= 0 ? '+' : ''}${d.toFixed(1)}`;
+  document.getElementById('slider').value = Math.round(t / LAST * 1000);
+}
+
+// 재생
+let playing = false, lastTs = 0;
+const FRAME_SECONDS = 0.4;   // 화면에서 5분 프레임 하나를 보여주는 시간
+document.getElementById('play').onclick = () => {
+  playing = !playing; if (playing && t >= LAST) t = 0;
+  document.getElementById('play').textContent = playing ? '일시정지' : '재생';
+};
+document.getElementById('slider').oninput = e => { t = e.target.value / 1000 * LAST; draw(); };
+for (const id of ['showArrows', 'showStations', 'showGu']) document.getElementById(id).onchange = drawTop;
+function loop(ts) {
+  const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0; lastTs = ts;
+  const simPerReal = (F[1].t - F[0].t) * 60 / FRAME_SECONDS;   // 화면 1초당 시뮬레이션 초
+  if (playing) {
+    t = Math.min(LAST, t + dt / FRAME_SECONDS);
+    if (t >= LAST) { playing = false; document.getElementById('play').textContent = '재생'; }
+    draw();
+  }
+  stepFlow(dt * simPerReal * (playing ? 1 : 0.15));
+  requestAnimationFrame(loop);
+}
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

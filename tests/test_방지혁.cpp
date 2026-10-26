@@ -48,6 +48,10 @@ int main() {
     CHECK(grid.rows > 0);
     CHECK(grid.cols > 0);
     CHECK(grid.pm25.size() == grid.rows * grid.cols);
+    // 격자 범위는 측정소 위치와 상관없이 서울 전체 (위도 37.41~37.72, 경도 126.73~127.27)
+    CHECK(grid.minLat == 37.41 && grid.minLng == 126.73);
+    CHECK(grid.minLat + grid.rows * grid.cellLat >= 37.72);
+    CHECK(grid.minLng + grid.cols * grid.cellLng >= 127.27);
 
     // 4. 실제 CSV 형식 (YYYYMMDDHH, pm10/pm25 순서, 빈칸 = 결측값) 읽기
     {

@@ -137,15 +137,9 @@ void DataLoader::averageStations(const DateTime& from, const DateTime& to, Dynam
 void buildGrid(const DynamicArray<Station>& stations, double cellMeters, Grid& out) {
     if (stations.empty()) return;
 
-    double minLat = stations[0].lat, maxLat = stations[0].lat;
-    double minLng = stations[0].lng, maxLng = stations[0].lng;
-
-    for (int i = 1; i < static_cast<int>(stations.size()); ++i) {
-        if (stations[i].lat < minLat) minLat = stations[i].lat;
-        if (stations[i].lat > maxLat) maxLat = stations[i].lat;
-        if (stations[i].lng < minLng) minLng = stations[i].lng;
-        if (stations[i].lng > maxLng) maxLng = stations[i].lng;
-    }
+    // 격자 범위: 측정소 위치가 아니라 서울 전체로 고정 (외곽 지역도 경로 탐색 가능하도록)
+    const double minLat = 37.41, maxLat = 37.72;
+    const double minLng = 126.73, maxLng = 127.27;
 
     // 위도 1도 약 111,000m 기준 간격 계산
     double latDegreeStep = cellMeters / 111000.0;

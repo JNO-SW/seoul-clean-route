@@ -48,24 +48,33 @@ bool DataLoader::loadStations(const std::string& path) {
     return true;
 }
 
+// 빈칸(결측값)이면 -1.0, 아니면 숫자로 변환
+static double parseValue(const std::string& token) {
+    if (token.empty()) return -1.0;
+    return std::stod(token);
+}
+
 // --------------------------------------------------------
 // 2. loadDistrict (대기 데이터 파싱 및 AVL 트리 삽입)
+// 열 순서: datetime,station_code,station_name,pm10,pm25,o3,no2,co,so2
+// 시각: YYYYMMDDHH (예: 2025020112)
 // --------------------------------------------------------
 bool DataLoader::loadDistrict(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) return false;
 
     std::string line;
-    if (!std::getline(file, line)) return false;
+    if (!std::getline(file, line)) return false;   // 머리글 건너뛰기
 
     DynamicArray<std::string> tokens;
     while (std::getline(file, line)) {
         if (line.empty()) continue;
         parseCSVLine(line, tokens);
-        if (tokens.size() < 4) continue;
+        if (tokens.size() < 5) continue;
+        if (tokens[0].length() < 10) continue;      // 시각 형식이 아니면 건너뛰기
 
-        std::string name = tokens[0]; // 관측소 식별 이름
-
+        // 관측소는 이름(station_name)으로 찾기
+        const std::string& name = tokens[2];
         int stationIndex = -1;
         for (int i = 0; i < static_cast<int>(stations_.size()); ++i) {
             if (stations_[i].name == name) {
@@ -73,23 +82,18 @@ bool DataLoader::loadDistrict(const std::string& path) {
                 break;
             }
         }
+        if (stationIndex == -1) continue;
 
-        if (stationIndex != -1) {
-            Record r;
-            r.stationIndex = stationIndex;
+        Record r;
+        r.stationIndex = stationIndex;
+        r.time.year = std::stoi(tokens[0].substr(0, 4));
+        r.time.month = std::stoi(tokens[0].substr(4, 2));
+        r.time.day = std::stoi(tokens[0].substr(6, 2));
+        r.time.hour = std::stoi(tokens[0].substr(8, 2));
+        r.pm10 = parseValue(tokens[3]);
+        r.pm25 = parseValue(tokens[4]);
 
-            // YYYY-MM-DD HH:00 파싱
-            if (tokens[1].length() >= 13) {
-                r.time.year = std::stoi(tokens[1].substr(0, 4));
-                r.time.month = std::stoi(tokens[1].substr(5, 2));
-                r.time.day = std::stoi(tokens[1].substr(8, 2));
-                r.time.hour = std::stoi(tokens[1].substr(11, 2));
-            }
-            r.pm25 = std::stod(tokens[2]);
-            r.pm10 = std::stod(tokens[3]);
-
-            records_.insert(r);
-        }
+        records_.insert(r);
     }
     return true;
 }
@@ -112,26 +116,17 @@ void DataLoader::averageStations(const DateTime& from, const DateTime& to, Dynam
 
     for (int i = 0; i < static_cast<int>(stations_.size()); ++i) {
         Station st = stations_[i];
-        double sumPm25 = 0.0;
-        double sumPm10 = 0.0;
-        int count = 0;
+        double sumPm25 = 0.0, sumPm10 = 0.0;
+        int countPm25 = 0, countPm10 = 0;   // 결측값(음수)을 빼고 각각 따로 셈
 
         for (int j = 0; j < static_cast<int>(matched.size()); ++j) {
-            if (matched[j].stationIndex == i) {
-                sumPm25 += matched[j].pm25;
-                sumPm10 += matched[j].pm10;
-                count++;
-            }
+            if (matched[j].stationIndex != i) continue;
+            if (matched[j].pm25 >= 0) { sumPm25 += matched[j].pm25; ++countPm25; }
+            if (matched[j].pm10 >= 0) { sumPm10 += matched[j].pm10; ++countPm10; }
         }
 
-        if (count > 0) {
-            st.pm25 = sumPm25 / count;
-            st.pm10 = sumPm10 / count;
-        }
-        else {
-            st.pm25 = -1.0;
-            st.pm10 = -1.0;
-        }
+        st.pm25 = (countPm25 > 0) ? sumPm25 / countPm25 : -1.0;
+        st.pm10 = (countPm10 > 0) ? sumPm10 / countPm10 : -1.0;
         out.push_back(st);
     }
 }

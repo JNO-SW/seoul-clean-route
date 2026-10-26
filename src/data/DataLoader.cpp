@@ -1,5 +1,6 @@
 // 담당: 방지혁
 #include "data/DataLoader.h"
+#include "data/HashTable.h"
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -66,6 +67,12 @@ bool DataLoader::loadDistrict(const std::string& path) {
     std::string line;
     if (!std::getline(file, line)) return false;   // 머리글 건너뛰기
 
+    // 관측소 이름 → 관측소 목록에서의 위치 (해시 테이블, 체이닝)
+    HashTable<std::string, int> stationIndexByName(64);
+    for (int i = 0; i < static_cast<int>(stations_.size()); ++i) {
+        stationIndexByName.put(stations_[i].name, i);
+    }
+
     DynamicArray<std::string> tokens;
     while (std::getline(file, line)) {
         if (line.empty()) continue;
@@ -73,16 +80,10 @@ bool DataLoader::loadDistrict(const std::string& path) {
         if (tokens.size() < 5) continue;
         if (tokens[0].length() < 10) continue;      // 시각 형식이 아니면 건너뛰기
 
-        // 관측소는 이름(station_name)으로 찾기
-        const std::string& name = tokens[2];
-        int stationIndex = -1;
-        for (int i = 0; i < static_cast<int>(stations_.size()); ++i) {
-            if (stations_[i].name == name) {
-                stationIndex = i;
-                break;
-            }
-        }
-        if (stationIndex == -1) continue;
+        // 관측소는 이름(station_name)으로 해시 테이블에서 찾기, O(1) 평균
+        int* found = stationIndexByName.get(tokens[2]);
+        if (found == nullptr) continue;
+        int stationIndex = *found;
 
         Record r;
         r.stationIndex = stationIndex;
@@ -141,9 +142,12 @@ void buildGrid(const DynamicArray<Station>& stations, double cellMeters, Grid& o
     const double minLat = 37.41, maxLat = 37.72;
     const double minLng = 126.73, maxLng = 127.27;
 
-    // 위도 1도 약 111,000m 기준 간격 계산
-    double latDegreeStep = cellMeters / 111000.0;
-    double lngDegreeStep = cellMeters / (111000.0 * std::cos(minLat * 3.14159265358979323846 / 180.0));
+    // 위도 1도 ≈ 111,000m, 경도 1도 ≈ 111,000m × cos(위도) → 칸 한 변이 cellMeters가 되도록 간격 계산
+    const double PI = 3.14159265358979323846;
+    double metersPerLat = 111000.0;
+    double metersPerLng = 111000.0 * std::cos(minLat * PI / 180.0);
+    double latDegreeStep = cellMeters / metersPerLat;
+    double lngDegreeStep = cellMeters / metersPerLng;
 
     out.rows = static_cast<int>((maxLat - minLat) / latDegreeStep) + 1;
     out.cols = static_cast<int>((maxLng - minLng) / lngDegreeStep) + 1;
@@ -152,13 +156,19 @@ void buildGrid(const DynamicArray<Station>& stations, double cellMeters, Grid& o
     out.cellLat = latDegreeStep;
     out.cellLng = lngDegreeStep;
 
-    out.pm25.resize(out.rows * out.cols, 0.0);
+    int cellCount = out.rows * out.cols;
+    out.pm25.clear();
+    out.temp.clear();
+    out.passable.clear();
+    out.pm25.resize(cellCount, -1.0);
+    out.temp.resize(cellCount, -999.0);   // 기온 데이터는 아직 없음 (값 없음 = -999)
+    out.passable.resize(cellCount, true); // 중간발표: 모든 칸 통행 가능 (OSM 반영은 최종)
 
-    // IDW (역거리 가중 보간법)
+    // IDW (역거리 가중 보간법): Σ(측정값 / 거리²) / Σ(1 / 거리²)
     for (int r = 0; r < out.rows; ++r) {
-        double cellLatPos = minLat + r * latDegreeStep;
+        double cellLatPos = minLat + (r + 0.5) * latDegreeStep;   // 칸 중심
         for (int c = 0; c < out.cols; ++c) {
-            double cellLngPos = minLng + c * lngDegreeStep;
+            double cellLngPos = minLng + (c + 0.5) * lngDegreeStep;
 
             double weightSum = 0.0;
             double valueSum = 0.0;
@@ -167,11 +177,12 @@ void buildGrid(const DynamicArray<Station>& stations, double cellMeters, Grid& o
             for (int i = 0; i < static_cast<int>(stations.size()); ++i) {
                 if (stations[i].pm25 < 0) continue;
 
-                double dLat = cellLatPos - stations[i].lat;
-                double dLng = cellLngPos - stations[i].lng;
-                double distSq = dLat * dLat + dLng * dLng;
+                // 위경도 차이를 미터로 바꿔서 거리 계산 (경도 1도가 위도 1도보다 짧음)
+                double dy = (cellLatPos - stations[i].lat) * metersPerLat;
+                double dx = (cellLngPos - stations[i].lng) * metersPerLng;
+                double distSq = dx * dx + dy * dy;
 
-                if (distSq < 1e-12) {
+                if (distSq < 1.0) {   // 1m 이내면 그 측정소 값 그대로
                     out.pm25[r * out.cols + c] = stations[i].pm25;
                     foundExact = true;
                     break;
@@ -182,8 +193,8 @@ void buildGrid(const DynamicArray<Station>& stations, double cellMeters, Grid& o
                 valueSum += w * stations[i].pm25;
             }
 
-            if (!foundExact) {
-                out.pm25[r * out.cols + c] = (weightSum > 0) ? (valueSum / weightSum) : 0.0;
+            if (!foundExact && weightSum > 0) {
+                out.pm25[r * out.cols + c] = valueSum / weightSum;
             }
         }
     }

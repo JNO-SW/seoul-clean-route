@@ -52,6 +52,18 @@ int main() {
     CHECK(grid.minLat == 37.41 && grid.minLng == 126.73);
     CHECK(grid.minLat + grid.rows * grid.cellLat >= 37.72);
     CHECK(grid.minLng + grid.cols * grid.cellLng >= 127.27);
+    // passable, temp도 칸 수만큼 만들고, 중간발표에서는 모든 칸 통행 가능
+    CHECK(grid.passable.size() == grid.rows * grid.cols && grid.temp.size() == grid.rows * grid.cols);
+    bool allOpen = true;
+    for (int k = 0; k < grid.passable.size(); ++k) if (!grid.passable[k]) allOpen = false;
+    CHECK(allOpen);
+    // 측정소가 있는 칸의 값은 그 측정소 값과 거의 같아야 함 (칸 중심과 측정소가 최대 약 70m)
+    {
+        const Station& s0 = fakeStations[12];
+        int r = (int)std::floor((s0.lat - grid.minLat) / grid.cellLat);
+        int c = (int)std::floor((s0.lng - grid.minLng) / grid.cellLng);
+        CHECK(std::fabs(grid.pm25[r * grid.cols + c] - s0.pm25) < 1.0);
+    }
 
     // 4. 실제 CSV 형식 (YYYYMMDDHH, pm10/pm25 순서, 빈칸 = 결측값) 읽기
     {

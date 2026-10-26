@@ -1,12 +1,16 @@
 // 담당: 방지혁
 #include "data/TimeAVL.h"
-#include <algorithm>
 
 // --------------------------------------------------------
 // Private Static Helper 멤버 함수 구현 (TimeAVL.h 헤더 명세 100% 일치)
 // --------------------------------------------------------
 int TimeAVL::heightOf(Node* n) {
     return n ? n->height : 0;
+}
+
+// 두 정수 중 큰 값 (STL 알고리즘 std::max 대신 직접 비교)
+static int maxOf(int a, int b) {
+    return a > b ? a : b;
 }
 
 TimeAVL::Node* TimeAVL::rotateRight(Node* y) {
@@ -16,8 +20,8 @@ TimeAVL::Node* TimeAVL::rotateRight(Node* y) {
     x->right = y;
     y->left = T2;
 
-    y->height = 1 + std::max(heightOf(y->left), heightOf(y->right));
-    x->height = 1 + std::max(heightOf(x->left), heightOf(x->right));
+    y->height = 1 + maxOf(heightOf(y->left), heightOf(y->right));
+    x->height = 1 + maxOf(heightOf(x->left), heightOf(x->right));
 
     return x;
 }
@@ -29,8 +33,8 @@ TimeAVL::Node* TimeAVL::rotateLeft(Node* x) {
     y->left = x;
     x->right = T2;
 
-    x->height = 1 + std::max(heightOf(x->left), heightOf(x->right));
-    y->height = 1 + std::max(heightOf(y->left), heightOf(y->right));
+    x->height = 1 + maxOf(heightOf(x->left), heightOf(x->right));
+    y->height = 1 + maxOf(heightOf(y->left), heightOf(y->right));
 
     return y;
 }
@@ -38,7 +42,7 @@ TimeAVL::Node* TimeAVL::rotateLeft(Node* x) {
 TimeAVL::Node* TimeAVL::rebalance(Node* n) {
     if (!n) return nullptr;
 
-    n->height = 1 + std::max(heightOf(n->left), heightOf(n->right));
+    n->height = 1 + maxOf(heightOf(n->left), heightOf(n->right));
     int balance = heightOf(n->left) - heightOf(n->right);
 
     // LL Case

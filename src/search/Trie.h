@@ -21,4 +21,10 @@ public:
 private:
     struct Node;
     Node* root_ = nullptr;
+
+    static void destroy(Node* n);
+    static void collect(const Node* n, int limit, DynamicArray<Place>& out);
+
+    Trie(const Trie&) = delete;              // 노드를 직접 관리하므로 복사 금지
+    Trie& operator=(const Trie&) = delete;
 };

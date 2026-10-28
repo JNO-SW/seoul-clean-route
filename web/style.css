@@ -7,3 +7,21 @@ main { flex: 1; display: flex; min-height: 0; }
 #panel { width: 300px; padding: 16px; border-left: 1px solid #ddd; overflow-y: auto; }
 #panel h2 { font-size: 15px; margin-bottom: 8px; }
 #panel section { margin-bottom: 24px; }
+#panel p { font-size: 13px; color: #444; line-height: 1.5; }
+#panel code { background: #f2f2f2; padding: 1px 4px; border-radius: 3px; }
+#panel small { font-weight: normal; color: #888; font-size: 12px; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+.cmp th, .cmp td { padding: 5px 4px; text-align: right; border-bottom: 1px solid #eee; }
+.cmp th:first-child, .cmp td:first-child { text-align: left; color: #666; }
+.sw { display: inline-block; width: 14px; height: 0; vertical-align: middle; margin-right: 4px; }
+.sw.best { border-top: 4px solid #0A9A0A; }
+.sw.short { border-top: 3px dashed #555; }
+.summary b { color: #0A9A0A; }
+.rank { display: flex; gap: 12px; }
+.rank > div { flex: 1; }
+.rank h3 { font-size: 13px; margin-bottom: 4px; color: #666; }
+.rank ol { padding-left: 18px; font-size: 13px; line-height: 1.7; }
+.rank span { color: #888; float: right; }
+.legend { background: #fff; padding: 6px 8px; border-radius: 4px; font-size: 12px; line-height: 1.6; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.legend .bar { width: 120px; height: 10px; margin-top: 4px; opacity: .7; }
+.legend .ends { display: flex; justify-content: space-between; color: #555; }

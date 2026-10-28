@@ -11,9 +11,11 @@ public:
     int vertexCount() const;                        // 전체 칸 수
 
     // 칸 u의 통행 가능한 이웃 칸 번호를 out에 채움 (최대 8개)
+    // out은 먼저 비우고 채움. 대각선은 양옆 두 칸이 모두 통행 가능할 때만 포함 (건물 모서리 뚫기 방지)
     void neighbors(int u, DynamicArray<int>& out) const;
 
-    // 칸 u → v 간선 비용 (거리 × 환경 비용)
+    // 칸 u → v 간선 비용 = 길이 × (1 + alpha × PM/35 + beta × |기온 − 15| / 10)
+    // PM·기온은 두 칸의 평균. 값이 없는 칸(음수)은 기준값(PM 35, 기온 15도)으로 봄
     double weight(int u, int v, const WeightOption& opt) const;
 
     double length(int u, int v) const;              // 두 칸 중심 사이 거리 (m)
@@ -25,4 +27,12 @@ public:
 
 private:
     const Grid& grid_;
+    double metersPerLat_;   // 위도 1도의 길이 (m)
+    double metersPerLng_;   // 격자 가운데 위도에서 경도 1도의 길이 (m)
+
+    // passable이 비어 있으면(OSM 반영 전) 모든 칸을 통행 가능으로 봄
+    bool isPassable(int cell) const;
+    bool isPassable(int row, int col) const;
+    double pmAt(int cell) const;
+    double tempAt(int cell) const;
 };

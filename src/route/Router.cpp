@@ -5,12 +5,19 @@
 #include "route/Stack.h"
 #include "route/Queue.h"
 
+// passable이 비어 있으면(OSM 반영 전) 모든 칸을 통행 가능으로 봄 (GridGraph와 같은 규칙)
+static bool passableAt(const Grid& g, int c) {
+    return g.passable.empty() || g.passable[c];
+}
+
 int nearestPassable(const GridGraph& graph, int c) {
     int n = graph.vertexCount();
     if (c < 0 || c >= n) return -1;
-    
+
+    const Grid& g = graph.grid();
+
     // 이미 통행 가능하면 자기 자신 반환
-    if (graph.grid().passable[c]) {
+    if (passableAt(g, c)) {
         return c;
     }
 
@@ -22,7 +29,9 @@ int nearestPassable(const GridGraph& graph, int c) {
     q.enqueue(c);
     visited[c] = true;
 
-    DynamicArray<int> nbors;
+    // 8방향 (상하좌우 + 대각선)
+    const int dr[8] = {-1, 1, 0, 0, -1, -1, 1, 1};
+    const int dc[8] = {0, 0, -1, 1, -1, 1, -1, 1};
 
     // BFS 탐색
     while (!q.empty()) {
@@ -30,22 +39,23 @@ int nearestPassable(const GridGraph& graph, int c) {
         q.dequeue();
 
         // 큐에서 꺼낸 칸이 통행 가능하면 가장 가까운 칸이므로 즉시 반환
-        if (graph.grid().passable[u]) {
+        if (passableAt(g, u)) {
             return u;
         }
 
-        nbors.clear();
-        graph.neighbors(u, nbors);
-
-        for (int i = 0; i < nbors.size(); ++i) {
-            int v = nbors[i];
+        // graph.neighbors()는 통행 가능한 이웃만 주므로, 막힌 칸을 지나 탐색하려면 8방향을 직접 계산
+        int r = u / g.cols, col = u % g.cols;
+        for (int i = 0; i < 8; ++i) {
+            int nr = r + dr[i], nc = col + dc[i];
+            if (nr < 0 || nr >= g.rows || nc < 0 || nc >= g.cols) continue;
+            int v = nr * g.cols + nc;
             if (!visited[v]) {
                 visited[v] = true;
                 q.enqueue(v);
             }
         }
     }
-    
+
     return -1; // 통행 가능한 칸을 찾지 못한 경우
 }
 

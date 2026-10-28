@@ -17,3 +17,28 @@ private:
 };
 
 // TODO(조효근): 아래에 구현 작성
+
+template <typename T>
+void Stack<T>::push(const T& value) {
+    data_.push_back(value);
+}
+
+template <typename T>
+void Stack<T>::pop() {
+    data_.pop_back();
+}
+
+template <typename T>
+T& Stack<T>::top() {
+    return data_.back();
+}
+
+template <typename T>
+int Stack<T>::size() const {
+    return data_.size();
+}
+
+template <typename T>
+bool Stack<T>::empty() const {
+    return data_.empty();
+}
